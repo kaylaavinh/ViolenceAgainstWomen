@@ -1,0 +1,812 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Violence Against Women Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+/* Layout: a core node with four narrative hubs around it, the examples on an elliptical ring, strands colored by the narrative they reach.
+   Choosing a narrative lifts its hub to the top, pulls its examples (and the ones that connect to it) into one row of cards, and docks everything else along the bottom. */
+:root{
+  --bg:#ffffff;
+  --ink:#1b1a24;
+  --muted:#6a6977;
+  --line:#e3e2ea;
+  --wash:#f6f6f9;
+  --c1:#c9304b; --c1-ink:#a3243b;  /* red - women exist to be abused */
+  --c2:#ff6b35; --c2-ink:#cc5529;  /* orange - men are the human baseline */
+  --c3:#ff69b4; --c3-ink:#cc5490;  /* pink - women are responsible for their own safety */
+  --c4:#9b59b6; --c4-ink:#7c4791;  /* purple - abusers are responsible for not abusing */
+  --display:"Instrument Serif", Georgia, "Times New Roman", serif;
+  --body:"Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --ease:cubic-bezier(.65,0,.35,1);
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg);color:var(--ink);font:14px/1.5 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:20px 36px;
+}
+.t-abused{--c:var(--c1);--ci:var(--c1-ink)}
+.t-baseline{--c:var(--c2);--ci:var(--c2-ink)}
+.t-safety{--c:var(--c3);--ci:var(--c3-ink)}
+.t-counter{--c:var(--c4);--ci:var(--c4-ink)}
+
+.wrap{max-width:1240px;margin:0 auto}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 24px;padding-block:4px 18px}
+.eyebrow{margin:0 0 10px;font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1{margin:0;font:400 clamp(36px,5.4vw,58px)/.98 var(--display);letter-spacing:-.012em;text-wrap:balance}
+.meta{margin:0;display:flex;flex-wrap:wrap;gap:4px 18px;font:400 12px/1.4 var(--mono);color:var(--muted)}
+.meta a{color:var(--ink);text-underline-offset:3px}
+
+.controls{display:flex;flex-wrap:wrap;gap:8px;padding-block:2px 12px}
+.tbtn.all{--c:var(--ink);--ci:var(--ink)}
+.tbtn{
+  display:inline-flex;align-items:center;gap:9px;min-height:40px;padding:8px 15px;
+  border:1.5px solid color-mix(in srgb,var(--c) 50%,#fff);border-radius:999px;background:#fff;color:var(--ink);
+  font:500 13px/1.25 var(--body);text-align:left;cursor:pointer;
+  transition:background-color .2s,border-color .2s,box-shadow .2s;
+}
+.tbtn .sw{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.tbtn .n{font:500 11px/1 var(--mono);color:var(--muted)}
+.tbtn:hover{background:color-mix(in srgb,var(--c) 7%,#fff)}
+.tbtn[aria-pressed="true"]{border-color:var(--c);background:color-mix(in srgb,var(--c) 13%,#fff);box-shadow:inset 0 0 0 1px var(--c)}
+.tbtn.all[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff;box-shadow:none}
+.tbtn.all[aria-pressed="true"] .n{color:#c9c8d4}
+.tbtn:focus-visible,.pchip:focus-visible,.p-close:focus-visible,.disc:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.status{margin:0 0 12px;min-height:1.5em;font:400 13.5px/1.5 var(--body);color:var(--muted)}
+
+.stage{
+  position:relative;height:680px;overflow:hidden;background:#fff;
+  border-block:1px solid var(--line);
+  transition:height .8s var(--ease);touch-action:pan-y;
+}
+.edges{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.edge{fill:none;stroke:var(--c);stroke-linecap:round;stroke-width:1.3;stroke-opacity:.5;transition:stroke-opacity .4s,stroke-width .4s}
+.edge.cross{stroke-opacity:.4}
+.edge.core{stroke:#d6d5e0;stroke-opacity:1;stroke-width:1}
+.edges[data-hl] .edge:not(.core){stroke-opacity:.09}
+.edges[data-hl] .edge.on{stroke-opacity:.95;stroke-width:2.1}
+
+.node{position:absolute;left:0;top:0;width:0;height:0;will-change:transform,opacity}
+.node .disc{
+  position:absolute;left:0;top:0;transform:translate(-50%,-50%);
+  width:var(--w);height:var(--h);margin:0;padding:0;overflow:hidden;
+  appearance:none;font:inherit;color:inherit;background:#fff;cursor:pointer;
+  transition:width .8s var(--ease),height .8s var(--ease),border-radius .8s var(--ease),padding .8s var(--ease),background-color .4s,border-color .4s,transform .2s;
+}
+.label{
+  position:absolute;left:0;top:calc(var(--h) / 2 + 9px);width:var(--lw);transform:translateX(-50%);
+  text-align:center;pointer-events:none;
+  transition:top .8s var(--ease),width .8s var(--ease),opacity .35s;
+}
+.label b{display:block;font:500 12.5px/1.25 var(--body);color:var(--ink);text-wrap:balance;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 4px #fff,0 0 6px #fff}
+.label .tag{display:block;margin-top:4px;font:500 10px/1.25 var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ci);text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 4px #fff}
+.label .tag:empty{display:none}
+
+/* core */
+.center .disc{border:1px solid var(--line);background:var(--wash);border-radius:50%;display:grid;place-items:center;cursor:default}
+.center .disc span{font:400 13px/1.05 var(--display);text-align:center;color:var(--ink);padding:0 8px;transition:opacity .3s}
+.center.dot .disc span{opacity:0}
+
+/* hubs */
+.hub .disc{border:2px solid var(--c);border-radius:50%;display:grid;place-items:center}
+.hub .disc:hover{background:color-mix(in srgb,var(--c) 8%,#fff)}
+.hub .htext{display:block;padding:0 8px;font:400 14.5px/1.05 var(--display);color:var(--ink);text-wrap:balance;transition:font-size .6s var(--ease),opacity .3s}
+.stage.narrow .hub .htext{font-size:11.5px;padding:0 5px}
+.hub.active .disc{background:color-mix(in srgb,var(--c) 10%,#fff);border-width:3px;cursor:default}
+.hub.active .htext{font-size:18px}
+.stage.narrow .hub.active .htext{font-size:14px}
+.hub .label{opacity:0}
+.hub.mini .disc{background:var(--c);border-width:0}
+.hub.mini .htext{font-size:0;opacity:0}
+.hub.mini .label{opacity:1;pointer-events:auto;cursor:pointer}
+.hub.mini .label b{font-weight:500;font-size:12px}
+
+/* items */
+.item .disc img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.item.ring .disc,.item.dock .disc{border:2px solid var(--c);border-radius:50%;padding:3px}
+.item.ring .disc:hover{transform:translate(-50%,-50%) scale(1.09)}
+.item.card .disc{border:2px solid var(--c);border-radius:6px;padding:0}
+.item.card .disc img{border-radius:4px}
+.item.todo .disc{border-style:dashed}
+.item .ini{display:grid;place-items:center;width:100%;height:100%;border-radius:inherit;background:color-mix(in srgb,var(--c) 14%,#fff);color:var(--ci);font:400 22px/1 var(--display)}
+.item .ph{display:grid;place-items:center;width:100%;height:100%;border-radius:inherit}
+.item .ph .dot{width:34%;height:34%;border-radius:50%;background:var(--c);opacity:.85}
+.item .ph .phtxt{display:none;font:500 10.5px/1.2 var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ci);text-align:center;padding:0 8px}
+.item.card .ph .dot{display:none}
+.item.card .ph .phtxt{display:block}
+.item.card.todo .disc{background:color-mix(in srgb,var(--c) 7%,#fff)}
+.item.dock .disc{background:var(--c);padding:0;border-width:2px}
+.item.dock.todo .disc{background:#fff}
+.item.dock .disc img,.item.dock .ini,.item.dock .ph .dot{display:none}
+.item.dock .label{opacity:0}
+.stage.narrow .item.ring .label{opacity:0}
+
+.stage.snap *{transition:none!important}
+@media (prefers-reduced-motion:reduce){
+  .stage,.stage *,.panel,.tbtn{transition:none!important}
+}
+
+/* detail panel */
+.panel{
+  position:fixed;z-index:30;top:0;right:0;bottom:0;width:min(450px,100%);
+  background:#fff;border-left:1px solid var(--line);box-shadow:-20px 0 44px -28px rgba(27,26,36,.35);
+  padding-top:max(22px,env(safe-area-inset-top,0px));
+  padding-bottom:max(28px,env(safe-area-inset-bottom,0px));
+  padding-left:26px;padding-right:max(26px,env(safe-area-inset-right,0px));
+  overflow-y:auto;overscroll-behavior:contain;
+  visibility:hidden;transform:translateX(104%);
+  transition:transform .45s cubic-bezier(.2,.8,.2,1),visibility 0s .45s;
+}
+.panel.open{visibility:visible;transform:none;transition:transform .45s cubic-bezier(.2,.8,.2,1),visibility 0s}
+.p-close{position:absolute;top:14px;right:max(14px,env(safe-area-inset-right,0px));width:40px;height:40px;border:1px solid var(--line);border-radius:50%;background:#fff;color:var(--ink);font:400 22px/1 var(--body);cursor:pointer}
+.p-close:hover{background:var(--wash)}
+.p-label{margin:0 0 6px;font:500 10.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.pchip{
+  display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border:1px solid color-mix(in srgb,var(--c) 45%,#fff);border-radius:999px;
+  background:color-mix(in srgb,var(--c) 9%,#fff);color:var(--ci);font:500 12px/1.3 var(--body);text-align:left;cursor:pointer;
+}
+.pchip i{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.pchip.primary{background:color-mix(in srgb,var(--c) 18%,#fff);border-color:var(--c)}
+.pchip:hover{background:color-mix(in srgb,var(--c) 22%,#fff)}
+.panel h2{margin:20px 56px 8px 0;font:400 36px/1.02 var(--display);letter-spacing:-.005em;text-wrap:balance}
+.who{margin:0 0 4px;font:400 11.5px/1.4 var(--mono);color:var(--muted)}
+.figs{display:grid;gap:16px;margin:18px 0}
+.figs figure{margin:0}
+.figs img{display:block;width:100%;height:auto;max-height:440px;object-fit:contain;background:var(--wash);border:1px solid var(--line);border-radius:4px}
+.figs figcaption{margin-top:6px;font:400 12px/1.5 var(--body);color:var(--muted)}
+.ptext p{margin:0 0 13px;font-size:14.5px;line-height:1.62;max-width:64ch}
+.todo-box{margin:16px 0;padding:16px;border:1.5px dashed color-mix(in srgb,var(--c) 60%,#fff);border-radius:6px;color:var(--muted);font-size:13.5px}
+.todo-box strong{display:block;margin-bottom:2px;color:var(--ink);font-weight:600}
+.note{margin:16px 0;padding:12px 14px;background:var(--wash);border-radius:6px;font-size:13.5px}
+.src{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+.src ul{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.src li{font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.src a{color:var(--ink);text-underline-offset:3px;text-decoration-color:color-mix(in srgb,var(--ink) 35%,#fff)}
+.src a:hover{text-decoration-color:var(--ink)}
+
+@media (max-width:720px){
+  .panel{
+    top:auto;left:0;right:0;width:auto;max-height:84vh;
+    border-left:0;border-top:1px solid var(--line);border-radius:18px 18px 0 0;
+    box-shadow:0 -20px 44px -28px rgba(27,26,36,.4);
+    padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));
+    transform:translateY(104%);
+  }
+  .panel.open{transform:none}
+  .panel h2{font-size:30px}
+  .tbtn{flex:1 1 100%}
+}
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div>
+      <p class="eyebrow">Feminism Project</p>
+      <h1>Violence Against Women</h1>
+    </div>
+    <p class="meta"><a href="https://miro.com/app/board/uXjVEV6MGNE=/" target="_blank" rel="noopener">Miro board</a></p>
+  </header>
+
+  <nav class="controls" id="controls" aria-label="Narratives"></nav>
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <section class="stage" id="stage" aria-label="Map of narratives and examples">
+    <svg class="edges" id="edges" aria-hidden="true"></svg>
+    <div id="nodes"></div>
+  </section>
+</div>
+
+<aside class="panel" id="panel" aria-label="Example details" aria-hidden="true"></aside>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- Content: edit here ---------- */
+/* Images live in the sibling ./images/ folder. Keep the key names below in sync
+   with each item\'s imgs[].k reference. alt and cap are maintained in ITEMS.
+   To add an image: place an optimised JPG/PNG in images/, then add its relative
+   path here and reference its key from the relevant item\'s imgs array. */
+var IMG = {
+  dracula:'images/dracula.jpg', vamp1:'images/vamp1.jpg', vamp2:'images/vamp2.jpg',
+  bridle:'images/bridle.jpg', wife:'images/wife.jpg',
+  contra:'images/contra.jpg', dummies:'images/dummies.jpg', suits:'images/suits.jpg',
+  glamour:'images/glamour.jpg', forceps:'images/forceps.jpg',
+  notice:'images/notice.jpg', coasters:'images/coasters.jpg', report:'images/report.jpg',
+  penn1:'images/penn1.jpg', penn2:'images/penn2.jpg', kabul:'images/kabul.jpg',
+  tea:'images/tea.jpg', cornell:'images/cornell.jpg',
+  credibility:'images/credibility.jpg', prostitution:'images/prostitution.jpg',
+  stitch:'images/stitch.jpg', tools:'images/tools.jpg',
+  castration:'images/castration.jpg', language:'images/language.jpg'
+};
+
+var THEMES = [
+  {id:'abused',   cls:'t-abused',   name:'Women Exist to be Abused',                                   short:'Women exist to be abused'},
+  {id:'baseline', cls:'t-baseline', name:'Men are the Human Baseline',                                 short:'Men are the human baseline'},
+  {id:'safety',   cls:'t-safety',   name:'Women are Responsible for their own Safety',                 short:'Women are responsible for their own safety'},
+  {id:'counter',  cls:'t-counter',  name:'Counter Narrative: Abusers are Responsible for Not Abusing', short:'Abusers are responsible for not abusing'}
+];
+
+var GOV = 'https://www.gov.uk/government/publications/the-relationship-between-pornography-use-and-harmful-sexual-behaviours/the-relationship-between-pornography-use-and-harmful-sexual-attitudes-and-behaviours-literature-review';
+var BBC = 'https://www.bbc.com/bbcthree/article/edf323d5-9ad6-460d-8585-003368f9af34';
+
+var ITEMS = [
+  /* ---- Women Exist to be Abused ---- */
+  {id:'vampires', theme:'abused', also:['safety'], title:'Vampires', short:'Vampires',
+   imgs:[
+     {k:'dracula', alt:'Dracula poster: a vampire carrying a woman in a green dress', cap:''},
+     {k:'vamp1', alt:'Still from a modern vampire film', cap:''},
+     {k:'vamp2', alt:'Still from a modern vampire series', cap:''}
+   ],
+   text:[
+     'Historical Gothic representation of vampires are often a metaphor for rape. They sent her on ownership, seduction and predatory activity. The women are portrayed as helpless prey. The natural order being that they exist to be consumed and taken advantage of. While examples like Dracula were suave and alluring these stories acted as cautionary tales.',
+     'The narrative of the vampire has shifted in modern media reproductions like twilight or vampire diaries. We see the vampire female relationship as desirable. This manifest as traits of control stalking forced isolation and abuse being viewed as the highest forms of love.',
+     'From Gothic to modern vampires are an example of women existing to feed the violent and predatory desires of monsters.'
+   ],
+   src:[{t:'Amanda Hobson & U. Melissa Anyiwo, Gender in the Vampire Narrative (2016)'}]},
+
+  {id:'porn', theme:'abused', title:'Violent Porn', short:'Violent porn',
+   imgs:[
+     {k:'bridle', alt:"Iron scold\'s bridle on a stand", cap:"Scold\'s Bridle: 16th century heavy metal frame 'to silence women who had basically spoken out against the patriarchy' or 'who challenged accepted notions of womanhood' in Britain."},
+     {k:'wife', alt:'Historical print of a wife sale in Britain', cap:'Wife Sales: Britain 18-19th Century'}
+   ],
+   text:[
+     'Early age exposure to pornography has been linked to increased misogyny, gender stereotypes, and sexual discrimination against women.',
+     'In 2023, French audiovisual regulator, Arcom found that "51% of 12-year-old boys in France view pornography every month", reinforcing rape culture from a young age (Chrisafis, 2023). Approximately 90% of pornography circulating online "features verbal, physical and sexual violence towards women" (Chrisafis, 2023). Increased exposure to violent pornography has increased acceptance of violence against women and new, distorted, expectations of sexual behaviors, which are resulting in "higher divorce rates, infidelity, and feelings of sexual incompetence" (Focus for Health Foundation, n.d.).',
+     'A literature review by the UK government and The Behavioural Architects, analyzed how mass media and legal pornography shape negative sexual attitudes and harmful behaviors towards women through four key themes. First, women are presented as sex objects in transactional interactions, creating a lack of empathy and humane representation. Violent porn also produces misleading interpretations of women\'s signals of distress. Secondly, "sexual scripting" in porn has created a "template" for how men view sex should occur. Next, pornography has been associated with Attitudes of Supporting Violence against women (ASV), and lastly, pornography exposure has been associated with greeted acceptance and chances of verbal and physical acts of aggression towards women (The Behavioural Architects et al., 2025).'
+   ],
+   src:[
+     {t:'The relationship between pornography use and harmful sexual attitudes and behaviours: literature review (GOV.UK)', u:GOV},
+     {t:"'Silencing masks' and 'wife auctions': What life used to be like for women (BBC Three)", u:BBC}
+   ]},
+
+  {id:'husband', theme:'abused', also:['baseline'], title:'Husband stitch', short:'Husband stitch', who:'Isabel',
+   imgs:[{k:'stitch', alt:'Image illustrating the husband stitch', cap:''}],
+   text:[
+     'The practice of placing an additional stitch when repairing a woman’s perineum after childbirth, supposedly to make the vaginal opening tighter for the husband’s sexual pleasure. This additional stitch has no recognized medical benefits and can even cause pain, discomfort, scarring, and difficulties during sexual intercourse NOT a standard medical procedure (not to be confused with medically necessary suturing after childbirth)',
+     'Male pleasure over female well-being: The extra stitch has no medical benefits, only benefiting the male sexual partner. Ownership of the female body: In practice, doctors will ask the male if the woman’s body can be altered (asking the man for permission). Objectifies the female body. Lack of consent. Normalization of women’s suffering: Pain becomes secondary to maintaining male (sexual) satisfaction. '
+   ],
+   src:[{t:'Health and Social Implications of the Husband Stitch: a nonconsensual additional stitch after childbirth'}],
+   alsoNote:'Connects to "Men are the Human Baseline": the woman\'s bodily autonomy and health are subordinated to male preference.'},
+  {id:'prostitution', theme:'abused', also:['baseline'], title:'Prostitution', short:'Prostitution', who:'Marta',
+   imgs:[{k:'prostitution', alt:'Image illustrating prostitution and exploitation', cap:''}],
+   text:[
+     'Prostitution is the abuse of women by men in numerous aspects. First, we find the normalization of male entitlement and demand. The male demand for sexual access is socially tolerated, reinforcing the patriarchal message that men are entitled to sexual gratification regardless of women’s desire. This related to the idea of male power and dominance over women. This power comes from tactics like economic exploitation and financial control, social isolation and physical and verbal abuse. All of these things render the woman worthless and in complete dependence on the system and industry.',
+     'As a result, women are dehumanized, seen as objects and commodities that can be purchased, used and discarded. This makes women objects existing solely for male enjoyment. Finally, the industry profits of marginalized collectives, poverty and desperation. As a result, prostituted women and girls often have irregular status and lack access to effective assistance, protection, services or livelihood opportunities, leaving them defenseless against the system.'
+   ],
+   src:[{t:'OHCHR: Understanding prostitution as a system of violence and exploitation', u:'https://www.ohchr.org/en/special-procedures/sr-violence-against-women/understanding-prostitution-system-violence-and-exploitation'}],
+   alsoNote:'Connects to "Men are the Human Baseline": male demand is treated as the organising norm, while women bear the costs and risks.'},
+
+  /* ---- Men are the Human Baseline ---- */
+  {id:'contra', theme:'baseline', title:'Contraceptives', short:'Contraceptives',
+   imgs:[{k:'contra', alt:'Chart of birth control methods', cap:'Birth control methods'}],
+   note:'Ratio male vs female',
+   text:[
+     'Contraceptives perpetuate the narrative that men are used as the human baseline in many ways. Firstly, we see how contraceptives mainly target women, as there are around 10 to 15 female contraceptive methods in comparison to the 2-3 male methods. This shows that the gender that must be corrected and controlled is the female. Contraception alters female hormones, cycles, weight, bleeding, pain, and other long-term risks, sending the message that it is the female body the one that must adapt to males, instead of sharing equal responsibility. In this line, contraceptives also prove that women’s bodies can and must be “managed”, in spite of negative side effects, while men remain the unmarked reference point. So the woman’s body becomes the site of intervention, and the man’s body stays invisible as the standard human body.',
+     'Female contraceptives can reinforce male-as-default thinking by locating the burden of reproductive control almost entirely in women’s bodies, making women responsible for preventing pregnancy while men remain positioned as the neutral baseline.'
+   ],
+   src:[
+     {t:'NHS: Methods of contraception', u:'https://www.nhs.uk/contraception/methods-of-contraception/'},
+     {t:'NHS: Side effects and risks of hormonal contraception', u:'https://www.nhs.uk/contraception/choosing-contraception/side-effects-and-risks-of-hormonal-contraception/'},
+     {t:'His Choice Health: Why not him? Why is birth control always on women?', u:'https://hischoicehealth.com/why-not-him-why-is-birth-control-always-on-women/'}
+   ]},
+
+  {id:'seatbelts', theme:'baseline', also:['safety','counter'], title:'Seatbelts', short:'Seatbelts', who:'Kayla',
+   imgs:[
+     {k:'dummies', alt:'Male and female crash test dummies compared by weight and height', cap:''},
+     {k:'suits', alt:'Two crash test dummies in suits standing on either side of a woman', cap:''}
+   ],
+   text:[
+     'Women are 73% more likely to be seriously injured in a frontal crash than men. The testing dummies in automotive safety were first standardized in the 1970s and were based on the average man for decades, safety development, improvements, and measurements have been done with a body that puts half the population in danger. Female crash dummies are simply a scaled down version of the Maille dummy. It is also the child dummy as it is about the size of a 12 to 13-year-old this also does not take into account. The biological differences between male and female anatomy. These dummies can take up to 20 years to develop because the research has to equate dummy damage to real world injuries.',
+     'Here we can see, not only the assumption and literal use of the male body as the baseline, but how that one decision can rip all out to create a system. Correcting the original mistake is extremely difficult. All of the current safety features are standardized for men, all the research measuring tools and data aren’t ready or calibrated for Women.'
+   ],
+   src:[{t:'Forbes: Dummies used in motor vehicle crash tests favor men and put women at risk, new report says', u:'https://www.forbes.com/sites/tanyamohn/2019/10/28/dummies-used-in-motor-vehicle-crash-tests-favor-men-and-put-women-at-risk-new-report-says/'}]},
+
+  {id:'credibility', theme:'baseline', also:['abused'], title:'Credibility', short:'Credibility', who:'Isabel',
+   imgs:[{k:'credibility', alt:'Image illustrating credibility and expectations of victims', cap:''}],
+   note:'What should a "credible" victim look or behave like?',
+   text:[
+     'What should a “credible” victim look or behave like? Why didn’t they immediately report? Why didn’t they physically resist? Previous sexual history? Clothing? Behavior? Alcohol?',
+     '“Boys will be boys”. Women as the cause of rape.',
+     'Male experience as the default: Historically, legal and social institutions have been built around male perspectives and assumptions. Treating male experiences as universal and women’s experiences as deviations with required explanations. Ideal victim stereotype: Expected to demonstrate fear, emotional distress, etc. to be believed. If not, they are not credible.'
+   ],
+   src:[
+     {t:'UN Women: 16 ways you can stand against rape culture', u:'https://www.unwomen.org/en/news/stories/2019/11/compilation-ways-you-can-stand-against-rape-culture'},
+     {t:'Rape Crisis Ireland: Submission to UN CEDAW on gender stereotypes (2025)', u:'https://www.rapecrisisireland.ie/wp-content/uploads/2025/04/RCI_UN-CEDAW_Gender-Stereotypes_February-2025-1.pdf'}
+   ],
+   alsoNote:'Connects to "Women Exist to be Abused": disbelief and credibility tests can make abuse seem expected while placing the burden on victims to prove otherwise.'},
+
+  {id:'medical', theme:'baseline', title:'Medical Misdiagnosis', short:'Medical misdiagnosis',
+   imgs:[
+     {k:'glamour', alt:'A woman\'s face covered by speech bubbles of dismissive comments', cap:''},
+     {k:'forceps', alt:'Historical illustration of birth forceps', cap:'16-18th Century Forceps & the Increased Involvement of Male Doctors'}
+   ],
+   text:[
+     'Men have historically served as the human baseline for medical research and pain diagnosis, resulting in women\'s health complaints being misunderstood, misdiagnosed and mistreated. Before 1993, "women were largely excluded from clinical trials", with women\'s health being underfunded and under-researched, reinforcing medical inequalities in diagnosis and treatments (Trayler & Zhanibekov, 2026).',
+     'Healthcare systems reinforce broader gender biases that dismiss women\'s expressions of pain, by measuring female pain against male biological standards.',
+     'Heart disease is the most common misdiagnosis amongst women, followed by endometriosis and autoimmune diseases (The Prenuvo Editorial Team, 2025). Historically, cardiovascular research, diagnostic and treatment procedures have been developed on male physiologies, leading to women\'s cardiac symptoms being misdiagnosed. According to the British Heart Foundation, "women are 50% more likely than men to be given incorrect diagnosis following a heart attack" (British Heart Foundation, 2024 & BHF Press Office, 2016).',
+     'Scientific studies have also found that gender biases in healthcare extend to pain management with female\'s pain levels "10% less likely to be recorded by nurses", 9% less likely to receive analgesic prescriptions, and female patients waiting on average 30 minutes longer in emergency rooms. Women\'s pain complaints are often overlooked and stereotypically perceived as emotional, dramatic, hysterical and exaggerated (Guzikevits et al., 2024).',
+     'Additionally, forceps invented in the 16th century were seen as a life-saving tool, but by the 18th century were disproved by many midwives due to the increased male doctor involvement that would intervene in natural birth processes and opt for unnecessary surgeries (Sanghani, 2019).'
+   ],
+   src:[
+     {t:'Glamour: Why are so many women being misdiagnosed', u:'https://www.glamour.com/story/why-are-so-many-women-being-misdiagnosed'},
+     {t:'PubMed Central article PMC11331074', u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC11331074/'},
+     {t:'PNAS (Guzikevits et al., 2024)', u:'https://www.pnas.org/doi/10.1073/pnas.2401331121'},
+     {t:'BHF Cardiovascular Research Centre: UK women underdiagnosed and undertreated for heart disease', u:'https://bhfcrc.org/bcs-consensus-uk-women-underdiagnosed-and-undertreated-for-heart-disease/'},
+     {t:'British Heart Foundation: Women are 50 per cent more likely than men to be given incorrect diagnosis following a heart attack', u:'https://www.bhf.org.uk/what-we-do/news-from-the-bhf/news-archive/2016/august/women-are-50-per-cent-more-likely-than-men-to-be-given-incorrect-diagnosis-following-a-heart-attack'},
+     {t:"BBC Three: 'Silencing masks' and 'wife auctions' (forceps and male doctors)", u:BBC}
+   ]},
+
+  /* ---- Women are Responsible for their own Safety ---- */
+  {id:'coasters', theme:'safety', also:['baseline'], title:'Drink-test coasters', short:'Drink-test coasters',
+   imgs:[
+     {k:'notice', alt:'Notice from the California Department of Alcoholic Beverage Control about drink spiking test kits', cap:''},
+     {k:'coasters', alt:'Collage of drink-testing coasters printed with hotline details', cap:'"Keep these in your purse and take them with you wherever you go." "you\'ll keep yourself and your drink safe."'}
+   ],
+   text:[
+     'Coasters to test for the presence of common date rape drugs. Place a drop on the coaster and wait for color change. These have been handed out at bars, universities, health centers and are available for purchase. They are available to be custom branded and often have access to resources in case of emergency.',
+     'Much of the publicity centers around raising awareness among young women at bars. It is their responsibility to research, purchase, bring, and test.',
+     'The description and marketing is in second person making it very personal. There is a direct connection between you needing this product to keep yourself safe.'
+   ],
+   src:[{t:'DrinkSafe: Drink test coasters', u:'https://www.drinksafe.com/drink-test-coasters/'}]},
+
+  {id:'antirape', theme:'safety', also:['abused','baseline'], title:'Anti-Rape Tools & Personal Safety Accessories', short:'Anti-rape tools', who:'Isabel',
+   imgs:[{k:'tools', alt:'Personal safety keychain and accessories marketed to women', cap:'Example of a personal safety accessory marketed towards women.'}],
+   note:'Products marketed towards women to help them protect themselves against sexual harassment, assault or other forms of violence.',
+   text:[
+     'Examples include decorative pepper sprays, safety alarms attached to keychains, cat-shaped kubotans, lipstick-shaped tasers and anti-rape condoms. Some products are designed in pink, sparkly or otherwise traditionally feminine styles to appeal to women.',
+     'Individual responsibility: women are encouraged to carry protective tools, plan their journeys and remain alert. They are positioned as responsible for taking precautions, rather than attention being directed towards the causes and perpetrators of violence.',
+     'Normalization of fear: these products can reinforce the idea that women must always be prepared for the possibility of assault.',
+     'Commercialization of insecurity: Women’s fear becomes a market opportunity. Another expense for us. Marketed as empowering instead of preventing violence in the first place.'
+   ],
+   src:[
+     {t:'Target: SABRE pink pepper spray', u:'https://www.target.com/p/sabre-pepper-spray-pink/-/A-15050986'},
+     {t:'Kepler Keychains: Blue watercolour safety keychain', u:'https://www.keplerkeychains.com/products/blue-watercolour-scurnchie-safety-keychain-with-blue-accessories-copy?srsltid=AYCX9vLIhgLX29cJA_3ysIr4IGKv5iaTJKg5fcqO3q9ROmQiO_CXl3Vu'},
+     {t:'Fighting Back: Defining a Market for Women\'s Safety'}
+   ],
+   alsoNote:'Connects to "Women Exist to be Abused" and "Men are the Human Baseline": women are expected to manage the threat and pay for their own protection.'},
+
+  {id:'victim', theme:'safety', title:'Victim Blaming', short:'Victim blaming',
+   imgs:[{k:'report', alt:'#WhyIDidntReport illustration of a woman whose mouth is covered by many hands', cap:''}],
+   text:[
+     'Victim blaming makes harm something that women must anticipate, manage and prevent on their own. It asks why the woman was there, what she wore, what she drank, why she stayed, why she did not leave… It suggests that the correct clothes, route, tone or refusal guarantees protection.'
+   ],
+   src:[{t:'SACE: Victim blaming', u:'https://www.sace.ca/learn/victim-blaming/'}]},
+
+  {id:'fashion', theme:'safety', title:'Fashion & Modesty', short:'Fashion & modesty',
+   imgs:[
+     {k:'penn1', alt:'Black and white photograph of twelve models moving their heads', cap:'Irving Penn, 12 Models Moving Their Heads, New York, 1947. Nicola Erni Collection, Zug © The Irving Penn Foundation'},
+     {k:'penn2', alt:'Black and white photograph of a woman in a heavy veil', cap:'Irving Penn, Woman with Heavy Veil, New York, 1966. Collection The Irving Penn Foundation, New York © The Irving Penn Foundation'},
+     {k:'kabul', alt:'Women wearing blue burqas in Kabul', cap:'"To Dress if To Be Free: Kabul, Afghanistan", Trends of The Times, 2026. (4)'}
+   ],
+   text:[
+     'Throughout history, women have been perceived as naturally provocative while simultaneously being expected to embody society\'s ideals of beauty and femininity. Fashion serves as a medium for expressing identity, social class, and is a "mirror" of cultural values, societal expectations, change, and politics.',
+     'While feminist movements of the 20th century increased women\'s freedom to dress for self-expression and to feel beautiful, they did not eliminate social expectations. Across cultures, women bear the responsibility of concealing themselves to not provoke unwanted attention, while simultaneously adhering to society\'s beauty standards to gain social respect and value. Religious modesty, such as veils used in monotheistic religions, and dress codes in school and workplaces setting, exemplify how cultural norms disproportionately target women\'s appearances to "reduce distraction" and make women less provocative. These dress codes reinforce gender stereotypes and place the responsibility on women to manage others perceptions to gain respect and social acceptance.',
+     'Therefore, the issue is not simply what women wear, but how society places responsibility on women to manage how others perceive and respond to their bodies.'
+   ],
+   src:[
+     {t:'Designboom: six decades of Irving Penn fashion photography (Rodrigues, 2026)', u:'https://www.designboom.com/art/six-decades-irving-penn-fashion-photography-mep-maison-europeenne-photographie-paris/'},
+     {t:'Evangelical Focus: Are head coverings really for today?', u:'https://evangelicalfocus.com/yourblog/929/are-head-coverings-really-for-today-'},
+     {t:'LSE blog: Humanitarians and the truth in Afghanistan', u:'https://blogs.lse.ac.uk/activism-influence-change/2025/07/28/humanitarians-and-the-truth-in-afghanistan/'},
+     {t:'Instagram, Trends of The Times (4)', u:'https://www.instagram.com/p/DaTp3jLH4LH/?img_index=10'},
+     {t:'Instagram reel, Trends of The Times (5)', u:'https://www.instagram.com/trendsofthetimes/reel/DUHOvZViYDB/'}
+   ]},
+
+  /* ---- Counter Narrative: Abusers are Responsible for Not Abusing ---- */
+  {id:'tea', theme:'counter', also:['safety'], title:'Tea Dating Advice', short:'Tea dating app',
+   imgs:[{k:'tea', alt:'Promotional graphic for the Tea app showing background checks and a sex offender map', cap:''}],
+   text:[
+     'Tea Dating Advice was a woman only app released in 2023. It was a space for users to anonymously post about men they were dating in the US. It was used to identify catfishes, do background checks for criminal records and map registered sex offenders. At one point in 2025, it was the number one lifestyle download in the United States. This was a space for women to hold people accountable and keep themselves safe without legal action. It brought to light how abusers were operating through digital anonymity and thriving off of a lack of transparency.'
+   ],
+   src:[{t:'Sky News: What is Tea, the women-only app with millions of users', u:'https://news.sky.com/story/what-is-tea-the-women-only-app-with-millions-of-users-13401888'}]},
+
+  {id:'cornell', theme:'counter', title:'Cornell University Rape Case & Jane Doe Anonymity', short:'Cornell & Jane Doe',
+   imgs:[{k:'cornell', alt:'Video thumbnail reading Looking for justice at Cornell', cap:''}],
+   text:[
+     '"Jane Doe" has become the standard legal pseudonym to anonymize female victims in legal proceedings. The Cornell University rape case, that occurred in October 2024, sparked a solidarity movement #IAmJaneDoe when the rape victim\'s identity was leaked. In October 2026, Doe\'s family faced a swatting incident due to false information given to law enforcement intended to trigger an armed police response in their home (Picheta, 2026). These incidents highlight the safety risks rape victims face when speaking up and pressing charges.',
+     'Research demonstrates that sexual violence "remains an underreported crime" due to reporting, investigating, and prosecution barriers. In the U.S. only approximately 31% of sexual assault is reported (Wieberneit et al., 2024). Survivors face constant challenges of shame, social judgment, victim-blaming, disbelief and privacy and reputational threats for speaking up.',
+     'Although society encourages women to report sexual violence, this narrative places the responsibility on women to speak up and seek justice rather than systematically shifting the narrative so that perpetrators refrain from abusing to the counter narrative: abusers are responsible for not abusing.'
+   ],
+   src:[
+     {t:'Silenced Survivors: A Systematic Review of the Barriers to Reporting, Investigating, Prosecuting, and Sentencing of Adult Female Rape and Sexual Assault (Wieberneit, Thal, Clare, Notebaert & Tubex, 2024)', u:'https://journals.sagepub.com/doi/10.1177/15248380241261404'},
+     {t:"CNN: Cornell\'s Jane Doe is 'terrified' after death threats and a swatting incident, her lawyer says", u:'https://edition.cnn.com/2026/10/08/us/cornell-jane-doe-threats-swatting'}
+   ]},
+
+  {id:'castration', theme:'counter', title:'Surgical Castration', short:'Surgical castration', who:'Isabel',
+   imgs:[{k:'castration', alt:'Image illustrating surgical castration', cap:''}],
+   text:[
+     'Surgical castration is a medical procedure involving the removal of the testicles. In context, it has historically been used as a form of treatment or punishment, particularly for sex offenders. Louisiana is the first state to allow surgical castration to be used as a punishment for sex crimes.',
+     'Reversing the responsibility: Women shouldn’t have to modify their behavior to avoid assault. Accountability: Perpetrator is treated as responsible for their actions and subject to intervention. Challenging male entitlement: Sexual violence is not only due to sexual desire or testosterone. It can also involve power, control, and entitlement challenges the assumption that men cannot control their sexual behavior.'
+   ],
+   src:[
+     {t:'National Cancer Institute: Surgical castration', u:'https://www.cancer.gov/publications/dictionaries/cancer-terms/def/surgical-castration'},
+     {t:'NPR: Louisiana new surgical castration law (1 July 2024)', u:'https://www.npr.org/2024/07/01/nx-s1-5020686/louisiana-new-surgical-castration-law'}
+   ],
+   alsoNote:'Counter-narrative: responsibility for preventing sexual violence belongs to perpetrators, not to women who are expected to change their behaviour.'},
+
+  {id:'language', theme:'counter', also:['abused'], title:'Language of Sexual Assault', short:'Language of assault',
+   imgs:[{k:'language', alt:'Image illustrating language used to describe sexual assault', cap:''}],
+   alsoNote:'Women exist to be abused (?) (because the norm is that women are abused, not that the abuser chose to abuse)',
+   text:[
+     'The language use for sexual assault is an important change reinforcing this counter narrative. Saying "he assaulted (her)" instead of "she was assaulted" makes responsibility explicit, and shows the abuser as the clear agent of the action. The shift matters because it refuses the passive framing that can hide violence as an accident, a misunderstanding or an unnamed misfortune. Instead, it explains that the person that harmed had the responsibility of choosing not to do so, and failed.'
+   ],
+   src:[{t:'EVAWI: Language Use for Sexual Assault (PDF)', u:'https://evawintl.org/wp-content/uploads/2013-06_TB-Language-Use-for-Sexual-Assault-1.pdf'}]}
+];
+/* ---------- end content ---------- */
+
+var BASE = [-90, 0, 90, 180];   /* where each narrative sits around the core */
+var DIR  = [1, 1, -1, -1];      /* keeps reading order left-to-right / top-to-bottom */
+
+function $(id){ return document.getElementById(id); }
+function mk(tag, cls, html){ var e = document.createElement(tag); if(cls) e.className = cls; if(html != null) e.innerHTML = html; return e; }
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+function plural(n, w){ return n + ' ' + w + (n === 1 ? '' : 's'); }
+function ease(t){ return t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
+
+var THEME = {}; THEMES.forEach(function(t, i){ t.i = i; THEME[t.id] = t; });
+var ITEM = {};
+ITEMS.forEach(function(it){
+  ITEM[it.id] = it;
+  it.also = it.also || [];
+  it.todo = !(it.text && it.text.length);
+  it.img = it.imgs && it.imgs.length ? IMG[it.imgs[0].k] : null;
+});
+
+function members(tid){
+  var p = [], a = [];
+  ITEMS.forEach(function(it){
+    if(it.theme === tid) p.push(it);
+    else if(it.also.indexOf(tid) > -1) a.push(it);
+  });
+  return {p:p, a:a, all:p.concat(a)};
+}
+
+/* ---------- DOM ---------- */
+var stage = $('stage'), svg = $('edges'), nodesBox = $('nodes'), statusEl = $('status'), panel = $('panel');
+var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+var W = 0, H = 0, narrow = false, rowMid = 0;
+var state = {theme:'all', hover:null};
+var nodes = {}, list = [], edges = [];
+
+/* header + buttons */
+var controls = $('controls');
+var btns = [];
+(function(){
+  var all = mk('button', 'tbtn all', '<span>All narratives</span><span class="n">' + ITEMS.length + '</span>');
+  all.type = 'button'; all.dataset.theme = 'all'; all.setAttribute('aria-pressed', 'true');
+  controls.appendChild(all); btns.push(all);
+  THEMES.forEach(function(t){
+    var b = mk('button', 'tbtn ' + t.cls, '<i class="sw"></i><span>' + esc(t.name) + '</span><span class="n">' + members(t.id).all.length + '</span>');
+    b.type = 'button'; b.dataset.theme = t.id; b.setAttribute('aria-pressed', 'false');
+    controls.appendChild(b); btns.push(b);
+  });
+  btns.forEach(function(b){
+    b.addEventListener('click', function(){
+      var id = b.dataset.theme;
+      closePanel();
+      go(id === state.theme ? 'all' : id);
+    });
+  });
+})();
+
+function addNode(id, kind, base, html, extra){
+  var el = mk('div', 'node ' + base, html);
+  nodesBox.appendChild(el);
+  var n = {id:id, kind:kind, el:el, base:'node ' + base, cur:{x:0, y:0, o:1}, from:null, to:null, t0:0, dur:0, tag:el.querySelector('.tag')};
+  if(extra) for(var k in extra) n[k] = extra[k];
+  nodes[id] = n; list.push(n);
+  return n;
+}
+
+/* core */
+addNode('c', 'center', 'center', '<div class="disc"><span>Violence Against Women</span></div>');
+
+/* hubs */
+THEMES.forEach(function(t){
+  var n = addNode('h:' + t.id, 'hub', 'hub ' + t.cls,
+    '<button class="disc" type="button" aria-label="Show examples for: ' + esc(t.name) + '"><span class="htext">' + esc(t.short) + '</span></button>' +
+    '<span class="label"><b>' + esc(t.short) + '</b></span>', {theme:t.id});
+  n.el.addEventListener('click', function(){ if(state.theme !== t.id){ closePanel(); go(t.id); } });
+  var d = n.el.querySelector('.disc');
+  d.addEventListener('pointerenter', function(){ setHover({k:'hub', id:t.id}); });
+  d.addEventListener('pointerleave', function(){ setHover(null); });
+  d.addEventListener('focus', function(){ setHover({k:'hub', id:t.id}); });
+  d.addEventListener('blur', function(){ setHover(null); });
+});
+
+/* items */
+ITEMS.forEach(function(it){
+  var disc = it.img ? '<img src="' + it.img + '" alt="" draggable="false">'
+    : (it.todo ? '<span class="ph"><span class="dot"></span><span class="phtxt">Text and image to come</span></span>'
+               : '<span class="ini">' + esc(it.title.charAt(0)) + '</span>');
+  var n = addNode(it.id, 'item', 'item ' + THEME[it.theme].cls + (it.todo ? ' todo' : ''),
+    '<button class="disc" type="button" title="' + esc(it.title) + '" aria-label="Open ' + esc(it.title) + (it.todo ? ' (text to come)' : '') + '">' + disc + '</button>' +
+    '<span class="label"><b>' + esc(it.short || it.title) + '</b><span class="tag"></span></span>', {item:it});
+  var d = n.el.querySelector('.disc');
+  d.addEventListener('click', function(e){ e.stopPropagation(); openItem(it.id, d); });
+  d.addEventListener('pointerenter', function(){ setHover({k:'item', id:it.id}); });
+  d.addEventListener('pointerleave', function(){ setHover(null); });
+  d.addEventListener('focus', function(){ setHover({k:'item', id:it.id}); });
+  d.addEventListener('blur', function(){ setHover(null); });
+});
+
+/* strands */
+var NS = 'http://www.w3.org/2000/svg';
+function addEdge(a, b, cls, themeId, itemId, k){
+  var p = document.createElementNS(NS, 'path');
+  p.setAttribute('class', 'edge ' + cls + ' ' + (themeId ? THEME[themeId].cls : ''));
+  svg.appendChild(p);
+  edges.push({a:a, b:b, path:p, item:itemId, hub:themeId, k:k});
+}
+THEMES.forEach(function(t){ addEdge('c', 'h:' + t.id, 'core', null, null, 0); });
+var ei = 0;
+ITEMS.forEach(function(it){
+  var s = (THEME[it.theme].i % 2 ? 1 : -1);
+  addEdge(it.id, 'h:' + it.theme, 'primary', it.theme, it.id, s * (0.07 + 0.035 * (ei++ % 3)));
+  it.also.forEach(function(tid){
+    addEdge(it.id, 'h:' + tid, 'cross', tid, it.id, -s * (0.1 + 0.04 * (ei++ % 3)));
+  });
+});
+
+function curve(a, b, pull, k){
+  var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+  var dx = b.x - a.x, dy = b.y - a.y, len = Math.sqrt(dx*dx + dy*dy) || 1;
+  var cx = mx + (pull.x - mx) * 0.32 + (-dy / len) * len * k;
+  var cy = my + (pull.y - my) * 0.32 + (dx / len) * len * k;
+  return 'M' + a.x.toFixed(1) + ',' + a.y.toFixed(1) + ' Q' + cx.toFixed(1) + ',' + cy.toFixed(1) + ' ' + b.x.toFixed(1) + ',' + b.y.toFixed(1);
+}
+function drawEdges(){
+  var pull = state.theme === 'all' ? {x:W/2, y:H/2} : {x:W/2, y:rowMid};
+  edges.forEach(function(e){
+    var na = nodes[e.a], nb = nodes[e.b];
+    e.path.setAttribute('d', curve(na.cur, nb.cur, pull, e.k));
+    e.path.style.opacity = Math.min(na.cur.o, nb.cur.o).toFixed(3);
+  });
+}
+function refreshEdges(){
+  var hl = state.hover || state.theme !== 'all';
+  var inRow = {};
+  if(state.theme !== 'all') members(state.theme).all.forEach(function(it){ inRow[it.id] = 1; });
+  edges.forEach(function(e){
+    var on = false;
+    if(e.hub){
+      if(state.hover) on = state.hover.k === 'item' ? e.item === state.hover.id : e.hub === state.hover.id;
+      else if(state.theme !== 'all') on = e.hub === state.theme || !!inRow[e.item];
+    }
+    e.path.classList.toggle('on', on);
+  });
+  if(hl) svg.setAttribute('data-hl', ''); else svg.removeAttribute('data-hl');
+}
+function setHover(h){ state.hover = h; refreshEdges(); }
+
+/* ---------- layout ---------- */
+function baseHeight(){ return narrow ? clamp(W * 1.45, 640, 820) : clamp(W * 0.56, 600, 760); }
+
+function layout(mode){
+  var T = {}, cx = W / 2, cy;
+
+  if(mode === 'all'){
+    H = baseHeight(); cy = H / 2; rowMid = cy;
+    var hr = narrow ? 38 : 50, hd = narrow ? 66 : 96, ir = narrow ? 17 : 26, lw = W < 900 ? 104 : 116;
+    T.c = {x:cx, y:cy, o:1, cls:narrow ? 'dot' : 'core', w:narrow ? 10 : 72, h:narrow ? 10 : 72, lw:0, z:2};
+    THEMES.forEach(function(t, i){
+      T['h:' + t.id] = {x:cx + [0, hd, 0, -hd][i], y:cy + [-hd, 0, hd, 0][i], o:1, cls:'big', w:2*hr, h:2*hr, lw:140, z:5};
+    });
+    var rx = W * (narrow ? 0.36 : 0.37), ry = H * (narrow ? 0.355 : 0.375);
+    THEMES.forEach(function(t, i){
+      var its = ITEMS.filter(function(it){ return it.theme === t.id; }), n = its.length;
+      its.forEach(function(it, j){
+        var off = -34 + j * (68 / Math.max(1, n - 1));
+        var th = (BASE[i] + DIR[i] * off) * Math.PI / 180;
+        T[it.id] = {x:cx + rx * Math.cos(th), y:cy + ry * Math.sin(th), o:1, cls:'ring', w:2*ir, h:2*ir, lw:lw, z:3};
+      });
+    });
+    return T;
+  }
+
+  var sel = THEME[mode], m = members(mode), n = m.p.length, gap = 16, pad = 12;
+  var perRow, cw;
+  if(narrow){
+    perRow = 2; cw = Math.min(168, Math.floor((W - 2*pad - gap) / 2));
+  } else {
+    var maxPer = Math.max(1, Math.floor((W - 2*pad + gap) / (124 + gap)));
+    var r0 = Math.ceil(n / maxPer);
+    perRow = Math.ceil(n / r0);
+    cw = Math.min(168, Math.floor((W - 2*pad - (perRow - 1) * gap) / perRow));
+  }
+  var rows = Math.ceil(n / perRow);
+  var imgH = Math.round(cw * 0.62), ch = imgH + 9 + 64;
+  var hubR = narrow ? 48 : 62, hubY = hubR + 20;
+  var dockH = narrow ? 168 : 142;
+var aRows = Math.ceil(m.a.length / perRow);
+var rowsH = rows * ch + (rows - 1) * gap;
+var extraH = m.a.length ? 18 + aRows * ch + (aRows - 1) * gap : 0;
+var totalRowsH = rowsH + extraH;
+
+var need = hubY + hubR + 40 + totalRowsH + 28 + dockH;
+H = Math.max(baseHeight(), need);
+
+var dockTop = H - dockH;
+var rowTop = hubY + hubR + Math.max(
+  26,
+  (dockTop - (hubY + hubR) - totalRowsH) / 2
+);
+
+rowMid = rowTop + totalRowsH / 2;
+
+  T.c = {x:cx, y:hubY, o:0, cls:'dot', w:10, h:10, lw:0, z:1};
+  T['h:' + mode] = {x:cx, y:hubY, o:1, cls:'active', w:2*hubR, h:2*hubR, lw:140, z:8};
+
+  m.p.forEach(function(it, idx){
+    var r = Math.floor(idx / perRow), c = idx % perRow;
+    var k = r < rows - 1 ? perRow : n - perRow * (rows - 1);
+    var total = k * cw + (k - 1) * gap;
+    T[it.id] = {x:cx - total / 2 + cw / 2 + c * (cw + gap), y:rowTop + r * (ch + gap) + imgH / 2, o:1, cls:'card', w:cw, h:imgH, lw:cw, z:6, cross:false};
+  });
+
+var aRow = rowTop + rows * (ch + gap) + 18;
+m.a.forEach(function(it, idx){
+  var r = Math.floor(idx / perRow), c = idx % perRow;
+  var k = Math.min(perRow, m.a.length - r * perRow);
+  var total = k * cw + (k - 1) * gap;
+  T[it.id] = {
+    x:cx - total / 2 + cw / 2 + c * (cw + gap),
+    y:aRow + r * (ch + gap) + imgH / 2,
+    o:1, cls:'card', w:cw, h:imgH, lw:cw, z:6, cross:true
+  };
+});
+
+  var others = THEMES.filter(function(t){ return t.id !== mode; });
+  var span = narrow ? W * 0.31 : Math.min(W * 0.28, 340);
+  var hubSize = narrow ? 24 : 28;
+  var inRow = {}; m.all.forEach(function(it){ inRow[it.id] = 1; });
+  others.forEach(function(t, i){
+    var hx = cx + (i - 1) * span;
+    T['h:' + t.id] = {x:hx, y:H - (narrow ? 74 : 62), o:1, cls:'mini', w:hubSize, h:hubSize, lw:Math.min(150, span - 10), z:4};
+    var rest = ITEMS.filter(function(it){ return it.theme === t.id && !inRow[it.id]; });
+    var step = narrow ? 18 : 22;
+    rest.forEach(function(it, j){
+      T[it.id] = {x:hx + (j - (rest.length - 1) / 2) * step, y:H - (narrow ? 130 : 118), o:1, cls:'dock', w:14, h:14, lw:0, z:3};
+    });
+  });
+  return T;
+}
+
+/* ---------- animation ---------- */
+var raf = 0;
+function tick(now){
+  var act = false;
+  for(var i = 0; i < list.length; i++){
+    var n = list[i];
+    var k = n.dur ? (now - n.t0) / n.dur : 1;
+    if(k < 0) k = 0;
+    if(k >= 1) k = 1; else act = true;
+    var e = ease(k);
+    n.cur.x = n.from.x + (n.to.x - n.from.x) * e;
+    n.cur.y = n.from.y + (n.to.y - n.from.y) * e;
+    n.cur.o = n.from.o + (n.to.o - n.from.o) * e;
+    n.el.style.transform = 'translate3d(' + n.cur.x.toFixed(2) + 'px,' + n.cur.y.toFixed(2) + 'px,0)';
+    n.el.style.opacity = n.cur.o.toFixed(3);
+    n.el.style.visibility = n.cur.o < 0.02 ? 'hidden' : 'visible';
+  }
+  drawEdges();
+  raf = act ? requestAnimationFrame(tick) : 0;
+}
+
+function go(mode, instant){
+  state.theme = mode;
+  var T = layout(mode);
+  stage.classList.toggle('narrow', narrow);
+  if(instant) stage.classList.add('snap');
+  stage.style.height = H + 'px';
+  var now = performance.now(), dur = (instant || reduce) ? 0 : 820;
+
+  list.forEach(function(n, i){
+    var t = T[n.id];
+    n.el.className = n.base + ' ' + t.cls + (t.cross ? ' cross' : '');
+    n.el.style.setProperty('--w', t.w + 'px');
+    n.el.style.setProperty('--h', t.h + 'px');
+    n.el.style.setProperty('--lw', (t.lw || 0) + 'px');
+    n.el.style.zIndex = t.z;
+    if(n.tag){
+      var parts = [];
+      if(t.cls === 'card'){
+        if(t.cross) parts.push('Also connects here');
+        if(n.item.todo) parts.push('Text to come');
+      }
+      n.tag.textContent = parts.join(' · ');
+    }
+    n.from = dur ? {x:n.cur.x, y:n.cur.y, o:n.cur.o} : {x:t.x, y:t.y, o:t.o};
+    n.to = {x:t.x, y:t.y, o:t.o};
+    n.dur = dur;
+    n.t0 = now + (dur ? (i % 7) * 18 : 0);
+  });
+
+  if(raf) cancelAnimationFrame(raf);
+  tick(now + 1);
+  if(instant) requestAnimationFrame(function(){ requestAnimationFrame(function(){ stage.classList.remove('snap'); }); });
+
+  btns.forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.theme === mode)); });
+  if(mode === 'all'){
+    statusEl.textContent = ITEMS.length + ' examples across ' + THEMES.length + ' narratives. Choose a narrative to line its examples up in a row, or tap any example to read it.';
+  } else {
+    var mm = members(mode);
+    statusEl.textContent = THEME[mode].name + ': ' + plural(mm.p.length, 'example') + ' belong here and ' + mm.a.length + ' more ' + (mm.a.length === 1 ? 'connects' : 'connect') + ' to it.';
+  }
+  refreshEdges();
+}
+
+/* ---------- detail panel ---------- */
+var lastFocus = null;
+function chip(tid, primary){
+  return '<button type="button" class="pchip ' + THEME[tid].cls + (primary ? ' primary' : '') + '" data-theme="' + tid + '"><i></i>' + esc(THEME[tid].short) + '</button>';
+}
+function panelHTML(it){
+  var t = THEME[it.theme];
+  var h = '<button class="p-close" type="button" aria-label="Close details">×</button>';
+  h += '<p class="p-label">Belongs to</p><div class="chips">' + chip(it.theme, true) + '</div>';
+  if(it.also.length) h += '<p class="p-label">Also connects to</p><div class="chips">' + it.also.map(function(a){ return chip(a, false); }).join('') + '</div>';
+  h += '<h2>' + esc(it.title) + '</h2>';
+  if(it.imgs && it.imgs.length){
+    h += '<div class="figs">' + it.imgs.map(function(im){
+      return '<figure><img src="' + IMG[im.k] + '" alt="' + esc(im.alt || '') + '" loading="lazy">' + (im.cap ? '<figcaption>' + esc(im.cap) + '</figcaption>' : '') + '</figure>';
+    }).join('') + '</div>';
+  }
+  if(it.text) h += '<div class="ptext">' + it.text.map(function(p){ return '<p>' + esc(p) + '</p>'; }).join('') + '</div>';
+  else h += '<div class="todo-box ' + t.cls + '"><strong>' + (it.imgs ? 'Analysis to come' : 'Text and image to come') + '</strong>' + (it.who ? esc(it.who) + ' is adding this one.' : 'Not written yet.') + '</div>';
+  if(it.src && it.src.length){
+    h += '<div class="src"><p class="p-label">Sources</p><ul>' + it.src.map(function(s){
+      return '<li>' + (s.u ? '<a href="' + esc(s.u) + '" target="_blank" rel="noopener">' + esc(s.t) + '</a>' : esc(s.t)) + '</li>';
+    }).join('') + '</ul></div>';
+  }
+  return h;
+}
+function openItem(id, from){
+  lastFocus = from || null;
+  panel.innerHTML = panelHTML(ITEM[id]);
+  panel.scrollTop = 0;
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  var c = panel.querySelector('.p-close'); if(c) c.focus({preventScroll:true});
+}
+function closePanel(){
+  if(!panel.classList.contains('open')) return;
+  panel.classList.remove('open');
+  panel.setAttribute('aria-hidden', 'true');
+  if(lastFocus && document.body.contains(lastFocus)) lastFocus.focus({preventScroll:true});
+  lastFocus = null;
+}
+panel.addEventListener('click', function(e){
+  var c = e.target.closest('.p-close');
+  if(c){ closePanel(); return; }
+  var ch = e.target.closest('.pchip');
+  if(ch){ lastFocus = null; closePanel(); go(ch.dataset.theme); }
+});
+stage.addEventListener('click', function(e){
+  if(!e.target.closest('.disc') && !e.target.closest('.hub')) closePanel();
+});
+document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closePanel(); });
+
+/* ---------- start + resize ---------- */
+W = stage.clientWidth; narrow = W < 720;
+go('all', true);
+
+var rt = 0;
+function onResize(){
+  var w = stage.clientWidth;
+  if(!w || w === W) return;
+  clearTimeout(rt);
+  rt = setTimeout(function(){ W = stage.clientWidth; narrow = W < 720; go(state.theme, true); }, 60);
+}
+if('ResizeObserver' in window) new ResizeObserver(onResize).observe(stage);
+else window.addEventListener('resize', onResize);
+})();
+</script>
+
+</body></html>
